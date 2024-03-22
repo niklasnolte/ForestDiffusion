@@ -117,7 +117,7 @@ def train(
     scheduler="cosine",
     T_dict=None,
     num_numerical_features=0,
-    device=torch.device("cuda:1"),
+    device=torch.device("cuda"),
     seed=0,
     change_val=False,
     use_mup=False,

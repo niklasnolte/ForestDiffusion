@@ -22,10 +22,10 @@ def _start(dirname: str):
     #print(f'>>> {dirname}')
     dataset_dir = Path(dirname)
     if not dataset_dir.exists():
-        dataset_dir.mkdir()
+        dataset_dir.mkdir(parents=True)
     else: # we delete before starting
         shutil.rmtree(dataset_dir)
-        dataset_dir.mkdir()
+        dataset_dir.mkdir(parents=True)
     return dataset_dir
 
 
@@ -90,8 +90,8 @@ def _save(
     (dataset_dir / 'READY').touch()
     #print('Done\n')
 
-def my_data_prep(X, y, cat_ind, noncat_ind, task='regression'): # 'regression', 'binclass', 'multiclass'
-    dataset_dir = _start('my_data')
+def my_data_prep(X, y, cat_ind, noncat_ind, task='regression', path="my_data"): # 'regression', 'binclass', 'multiclass'
+    dataset_dir = _start(path)
 
     df_trainval = X
     df_trainval = cast(pd.DataFrame, df_trainval)
@@ -112,7 +112,7 @@ def my_data_prep(X, y, cat_ind, noncat_ind, task='regression'): # 'regression', 
         X_cat = None
         _save(
             dataset_dir,
-            'my_data',
+            path,
             task_type,
             **_apply_split({'X_num': X_num, 'y': y}, idx),
             X_cat=None,
@@ -122,7 +122,7 @@ def my_data_prep(X, y, cat_ind, noncat_ind, task='regression'): # 'regression', 
         X_num = None
         _save(
             dataset_dir,
-            'my_data',
+            path,
             task_type,
             **_apply_split({'X_cat': X_cat, 'y': y}, idx),
             X_num=None,
@@ -131,7 +131,7 @@ def my_data_prep(X, y, cat_ind, noncat_ind, task='regression'): # 'regression', 
     else:
         _save(
             dataset_dir,
-            'my_data',
+            path,
             task_type,
             **_apply_split({'X_num': X_num, 'X_cat': X_cat, 'y': y}, idx),
             idx=idx

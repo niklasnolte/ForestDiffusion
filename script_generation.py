@@ -406,8 +406,8 @@ if __name__ == "__main__":
                         task_type='binclass'
                     else:
                         task_type='regression'
-                    my_data_prep(X_pd, y_pd, task=task_type, cat_ind=cat_ind, noncat_ind=noncat_ind)
-                    synthetic_data = disk_fn(config='DISK/config/config.toml', 
+                    my_data_prep(X_pd, y_pd, task=task_type, cat_ind=cat_ind, noncat_ind=noncat_ind, path=f"my_data/{dataset}")
+                    synthetic_data = disk_fn(config='DISK/config/config.toml', dataset=dataset,
                         cat_indexes=cat_indexes+bin_indexes, num_classes=len(np.unique(y_pd)) if cat_y or bin_y else 0, 
                         num_samples=Xy_train_used.shape[0], num_numerical_features=len(noncat_ind), seed=n, ngen=args.ngen)
                     Xy_fake = synthetic_data.astype('float')

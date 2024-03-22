@@ -29,6 +29,7 @@ def save_file(parent_dir, config_path):
 
 def main_fn(
     config="DISK/exp/my_data/config.toml",
+    dataset="iris",
     cat_indexes=[],
     d_in=0,
     num_classes=0,
@@ -60,6 +61,8 @@ def main_fn(
     raw_config["model_params"]["num_classes"] = num_classes
     raw_config["model_params"]["is_y_cond"] = num_classes > 0  # only for classification
     raw_config["sample"]["num_samples"] = num_samples
+    raw_config["parent_dir"] = raw_config["parent_dir"] + "/" + dataset
+    raw_config["real_data_path"] = raw_config["real_data_path"] + "/" + dataset
 
     dataset_dir = Path(raw_config["parent_dir"])
     if not dataset_dir.exists():
@@ -106,13 +109,13 @@ def main_fn(
     torch.cuda.empty_cache()
     gc.collect()
 
-    y = np.load("DISK/exp/my_data/y_train.npy", allow_pickle=True)
+    y = np.load(raw_config["parent_dir"] + "/y_train.npy", allow_pickle=True)
 
     try:  # There exist continuous variables
-        X_num = np.load("DISK/exp/my_data/X_num_train.npy", allow_pickle=True)
+        X_num = np.load(raw_config["parent_dir"] + "/X_num_train.npy", allow_pickle=True)
         X_comb = copy.deepcopy(X_num)
         try:  # Add categorical variables if they exist
-            X_cat = np.load("DISK/exp/my_data/X_cat_train.npy", allow_pickle=True)
+            X_cat = np.load(raw_config["parent_dir"] + "/X_cat_train.npy", allow_pickle=True)
             for j, i in enumerate(cat_indexes):
                 if j < X_cat.shape[1]:  # 0, 1, 2 for len=3
                     X_comb = np.insert(X_comb, i, X_cat[:, j], axis=1)
@@ -120,7 +123,7 @@ def main_fn(
             pass
     except:
         # all variables are categorical
-        X_comb = np.load("DISK/exp/my_data/X_cat_train.npy", allow_pickle=True)
+        X_comb = np.load(raw_config["parent_dir"] + "/X_cat_train.npy", allow_pickle=True)
 
     X_comb = np.concatenate((X_comb, np.expand_dims(y, axis=1)), axis=1)
 
