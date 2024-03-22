@@ -19,14 +19,16 @@ from utils import *
 from data_loaders import dataset_loader
 from sklearn.model_selection import train_test_split
 import argparse
-from ForestDiffusion import ForestDiffusionModel
+# from ForestDiffusion import ForestDiffusionModel
 from metrics import test_on_multiple_models, compute_coverage, test_imputation_regression, test_on_multiple_models_classifier
-from STaSy.stasy import STaSy_model
-from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer, CTGANSynthesizer, CopulaGANSynthesizer
-from sdv.metadata import SingleTableMetadata
-from CTABGANPlus.ctabgan import CTABGAN
-from TabDDPM.scripts.pipeline import main_fn as tab_ddpm_fn
-from TabDDPM.lib.dataset_prep import my_data_prep
+# from STaSy.stasy import STaSy_model
+# from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer, CTGANSynthesizer, CopulaGANSynthesizer
+# from sdv.metadata import SingleTableMetadata
+# from CTABGANPlus.ctabgan import CTABGAN
+# from TabDDPM.scripts.pipeline import main_fn as tab_ddpm_fn
+# from TabDDPM.lib.dataset_prep import my_data_prep
+from DISK.lib.dataset_prep import my_data_prep
+from DISK.scripts.pipeline import main_fn as disk_fn
 import miceforest as mf
 from missforest import MissForest
 
@@ -41,20 +43,20 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--out_path', type=str, default='jolicoea/tabular_generation_results.txt',
+parser.add_argument('--out_path', type=str, default='results/tabular_generation_results.txt',
                     help='filename for the results')
 
 parser.add_argument("--restore_from_name", type=str2bool, default=False, help="if True, restore session based on name")
 parser.add_argument("--name", type=str, default='my_exp', help="used when restoring from crashed instances")
 
-parser.add_argument("--methods", type=str, nargs='+', default=['oracle', 'CTGAN', 'GaussianCopula', 'TVAE', 'CopulaGAN', 'CTABGAN', 'stasy', 'TabDDPM', 'forest_diffusion'], help="oracle, CTGAN, GaussianCopula, TVAE, CopulaGAN, CTABGAN, stasy, TabDDPM, forest_diffusion")
+parser.add_argument("--methods", type=str, nargs='+', default=['oracle', 'CTGAN', 'GaussianCopula', 'TVAE', 'CopulaGAN', 'CTABGAN', 'stasy', 'TabDDPM', 'forest_diffusion', 'disk'], help="oracle, CTGAN, GaussianCopula, TVAE, CopulaGAN, CTABGAN, stasy, TabDDPM, forest_diffusion")
 parser.add_argument('--nexp', type=int, default=3,
                     help='number of experiences per parameter setting')
 parser.add_argument('--ngen', type=int, default=5,
                     help='number of generations per method')
 parser.add_argument('--n_tries', type=int, default=5,
                     help='number of models trained with different seeds in the metrics')
-parser.add_argument('--datasets', nargs='+', type=str, default=['iris', 'wine', 'parkinsons', 'climate_model_crashes', 'concrete_compression', 'yacht_hydrodynamics', 'airfoil_self_noise', 'connectionist_bench_sonar', 'ionosphere', 'qsar_biodegradation', 'seeds', 'glass', 'ecoli', 'yeast', 'libras', 'planning_relax', 'blood_transfusion', 'breast_cancer_diagnostic', 'connectionist_bench_vowel', 'concrete_slump', 'wine_quality_red', 'wine_quality_white', 'california', 'bean', 'tictactoe','congress','car'],
+parser.add_argument('--datasets', nargs='+', type=str, default=['iris', 'wine', 'parkinsons', 'climate_model_crashes', 'concrete_compression', 'yacht_hydrodynamics', 'airfoil_self_noise', 'connectionist_bench_sonar', 'ionosphere', 'qsar_biodegradation', 'seeds', 'glass', 'ecoli', 'yeast', 'libras', 'planning_relax', 'blood_transfusion', 'breast_cancer_diagnostic', 'connectionist_bench_vowel', 'concrete_slump', 'wine_quality_red', 'wine_quality_white', 'california', 'bean', 'tictactoe', 'congress', 'car'],
                     help='datasets on which to run the experiments')
 
 # Setting for Missingness if used
@@ -388,6 +390,29 @@ if __name__ == "__main__":
                         num_samples=Xy_train_used.shape[0], num_numerical_features=len(noncat_ind), seed=n, ngen=args.ngen)
                     Xy_fake = synthetic_data.astype('float')
                     Xy_fake = Xy_fake.reshape(args.ngen, Xy_train_used.shape[0], Xy_train_used.shape[1]) # [ngen, n, p]
+                    
+                elif method == 'disk': # DISK
+
+                    # Prep the data, will be save in the format that TabDDPM wants
+                    columns = [str(i) for i in range(Xy_train_used.shape[1])]
+                    data_pd = pd.DataFrame(Xy_train_used, columns = columns)
+                    X_pd = data_pd[columns[0:-1]]
+                    y_pd = data_pd[columns[-1]]
+                    cat_ind = [str(i) for i in range(X_pd.shape[1]) if i in cat_indexes+bin_indexes]
+                    noncat_ind = [str(i) for i in range(X_pd.shape[1]) if i not in cat_indexes+bin_indexes]
+                    if cat_y:
+                        task_type='multiclass'
+                    elif bin_y:
+                        task_type='binclass'
+                    else:
+                        task_type='regression'
+                    my_data_prep(X_pd, y_pd, task=task_type, cat_ind=cat_ind, noncat_ind=noncat_ind)
+                    synthetic_data = disk_fn(config='DISK/config/config.toml', 
+                        cat_indexes=cat_indexes+bin_indexes, num_classes=len(np.unique(y_pd)) if cat_y or bin_y else 0, 
+                        num_samples=Xy_train_used.shape[0], num_numerical_features=len(noncat_ind), seed=n, ngen=args.ngen)
+                    Xy_fake = synthetic_data.astype('float')
+                    Xy_fake = Xy_fake.reshape(args.ngen, Xy_train_used.shape[0], Xy_train_used.shape[1]) # [ngen, n, p]
+                    
 
                 elif method == 'forest_diffusion':
 

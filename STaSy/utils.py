@@ -1,7 +1,6 @@
 import os
 import torch
 import logging
-import tensorflow as tf
 import torch.nn.functional as F
 
 def restore_checkpoint(ckpt_dir, state, device):
